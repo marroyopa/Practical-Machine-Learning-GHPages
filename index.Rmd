@@ -1,0 +1,109 @@
+---
+title: "DDP Week 2 Assignment"
+author: "Marc Arroyo"
+date: "28/1/2021"
+output: html_document
+---
+
+## 0. Introduction
+
+This is the proposed solution of the second week Assignment of the Developing Data Products course in the Data Science Specialization from Johns Hopkins University on Coursera.
+
+### Instructions
+
+Create a web page using R Markdown that features a map created with Leaflet.
+
+Host your webpage on either GitHub Pages, RPubs, or NeoCities.
+
+Your webpage must contain the date that you created the document, and it must contain a map created with Leaflet. We would love to see you show off your creativity! 
+
+### Review criteria
+ 
+The rubric contains the following two questions:
+
+        - Does the web page feature a date and is this date less than two months before the date that you're grading this assignment?
+        -Does the web page feature an interactive map that appears to have been created with Leaflet?
+
+## 1. Preparing Environment and Loading Data
+
+First thing we will do is to load required libraries, set common chunk parameters and locale language to English, as mine it is not.
+
+```{r, EnvPrep, echo = TRUE, message = FALSE, warning = FALSE, error = FALSE, results='hide'}
+
+library(leaflet)
+library(knitr)
+library(dplyr)
+
+opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, error = FALSE)
+
+Sys.setlocale("LC_ALL", "English")
+
+```
+
+We will map the meteorological stations in Catalunya. To do so, we will load the file of all of them, with latitude and longitude, and we will subset those that are active today. Finally we will create the address and the popup field for every station.
+
+```{r, loaddata}
+
+# Load file
+
+metcatstat <- read.csv2("EstMeteoCat.csv")
+
+# Change name of two labels
+
+metcatstat <- metcatstat %>% rename (Codi = Estació..Codi.,
+                       Altitud = Altitud..m.)
+
+# Select only active stations
+
+metcatstatdef <- metcatstat %>% filter(Estat.actual == "Operativa")
+
+# Add web address for every station
+
+metcatstatdef <- metcatstatdef %>% 
+        mutate(webcode = substr(Codi,nchar(Codi)-2,nchar(Codi)-1))
+
+baseaddress <- "https://www.meteo.cat/observacions/xema/dades?codi="
+
+metcatstatdef$webcode <- paste0(baseaddress,metcatstatdef$webcode)
+        
+# Add popup for every station 
+
+metcatstatdef <- metcatstatdef %>% 
+        mutate(popup = paste0("<a href='", webcode,"'>", Codi, "</a>"))
+
+```
+
+## 2. Create the map
+
+### 2.1 Create elements
+
+We will create a dataframe with coordinates of the points, and an icon for the weather stations,
+
+```{r, mapelements}
+
+df <- data.frame(lat = as.numeric(metcatstatdef$Latitud), 
+                 lng = as.numeric(metcatstatdef$Longitud))
+
+
+
+marcIcon <- makeIcon(
+  iconUrl = "Weather_Station.png",
+  iconWidth = 31*215/230, iconHeight = 31,
+  iconAnchorX = 31*215/230/2, iconAnchorY = 16
+)
+
+```
+
+### 2.2 Map creation
+
+And now will create the map with the markers using our icon, the address and name of every meteorological station and an option of clustering to group if the zoom is not enough.
+
+```{r, mapcreation}
+
+
+df %>% leaflet() %>% addTiles() %>% 
+        addMarkers(icon = marcIcon, 
+                   popup = metcatstatdef$popup, 
+                   clusterOptions = markerClusterOptions())
+
+```
